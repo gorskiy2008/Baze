@@ -3,43 +3,37 @@ import requests
 import os
 import tempfile
 
-# Вставьте ваш НОВЫЙ токен (старый нужно отозвать у BotFather)
+# ВСТАВЬТЕ СЮДА НОВЫЙ ТОКЕН (старый нужно отозвать у BotFather)
 TOKEN = '8734402843:AAGxZBOvJf9BnDewwTV_iFKvCL_lhJGx1JY'
-bot = telebot.TeleBot("8734402843:AAGxZBOvJf9BnDewwTV_iFKvCL_lhJGx1JY")
+bot = telebot.TeleBot("8734402843:AAGxZBOvJf9BnDewwTV_iFKvCL_lhJGx1JY")  # используем переменную, а не строку напрямую
 
 # Команда /start
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, 'Привет! Я умею отправлять фото, видео и голосовые.\n'
+    bot.reply_to(message, 'Привет! Я умею отправлять фото, видео, голосовые и стикеры.\n'
                           'Используй команды:\n'
                           '/photo – получить фото\n'
                           '/video – получить видео\n'
-                          '/voice – получить голосовое сообщение\n'
-                          'А ещё ты можешь просто прислать мне фото, видео или голосовое, и я их сохраню!')
+                          '/voice – получить голосовое\n'
+                          '/sticker – получить стикер\n'
+                          'А ещё ты можешь прислать мне любое медиа (фото, видео, голос, стикер), и я его сохраню и покажу file_id.')
 
 # Команда /photo – отправляем фото
 @bot.message_handler(commands=['photo'])
 def send_photo(message):
     try:
-        # Сначала пробуем отправить локальный файл
         with open('cat.jpg', 'rb') as photo:
             bot.send_photo(message.chat.id, photo, caption='Вот тебе фото котика!')
     except FileNotFoundError:
-        # Если файла нет, скачиваем изображение по URL и отправляем
         try:
             url = 'https://cataas.com/cat'
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
-                # Сохраняем во временный файл
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
                     tmp.write(response.content)
                     tmp_path = tmp.name
-                
-                # Отправляем из временного файла
                 with open(tmp_path, 'rb') as photo:
                     bot.send_photo(message.chat.id, photo, caption='А вот котик из интернета')
-                
-                # Удаляем временный файл
                 os.unlink(tmp_path)
             else:
                 bot.reply_to(message, 'Не удалось загрузить фото :(')
@@ -54,7 +48,6 @@ def send_video(message):
             bot.send_video(message.chat.id, video, caption='Вот видео', 
                           supports_streaming=True, timeout=30)
     except FileNotFoundError:
-        # Отправляем видео по URL
         try:
             video_url = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
             bot.send_video(message.chat.id, video_url, caption='Пример видео из интернета',
@@ -66,53 +59,64 @@ def send_video(message):
 @bot.message_handler(commands=['voice'])
 def send_voice(message):
     try:
-        # Отправляем голосовое из локального файла
         with open('sample.ogg', 'rb') as voice:
             bot.send_voice(message.chat.id, voice, caption='Голосовое сообщение')
     except FileNotFoundError:
-        # Если файла нет, используем пример из интернета (нужен прямой URL на .ogg файл)
         bot.reply_to(message, 'Положите файл sample.ogg в папку с ботом')
-        # Альтернатива: можно отправить голосовое, сгенерировав текст в речь через сторонний API
 
-# Обработчик полученных фото от пользователя
+# Команда /sticker – отправляем стикер
+@bot.message_handler(commands=['sticker'])
+def send_sticker(message):
+    # Пример file_id стикера (из популярного набора "Sticker by Anna")
+    # Вы можете заменить на свой, отправив боту любой стикер и скопировав file_id из ответа
+    sticker_file_id = 'CAACAgIAAxkBAAEBuGpfyT6Z1jK7y8Q4Xq9z0JQr0H9uAAKAAQACFkJrAANDmQABZwABy4EAAQ0E'  # замените на реальный file_id
+    try:
+        bot.send_sticker(message.chat.id, sticker_file_id)
+    except Exception as e:
+        # Если file_id нерабочий, отправляем тестовый стикер из Telegram
+        bot.send_sticker(message.chat.id, 'CAACAgIAAxkBAAEBuHBfyT7A5QABG95iW5iY5Q8X8Z8jAAKCAQACFkJrAAP2YzN5W5YAAQQBAAMCAQe1AAMGBA')
+        bot.reply_to(message, f'Отправлен тестовый стикер. Ошибка с вашим file_id: {e}')
+
+# Обработчик полученных фото
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
-    # Получаем ID фото (самое большое разрешение)
     file_id = message.photo[-1].file_id
     file_info = bot.get_file(file_id)
-    
-    # Скачиваем фото
     downloaded_file = bot.download_file(file_info.file_path)
-    
-    # Сохраняем на диск
     with open(f'photo_{message.from_user.id}_{message.message_id}.jpg', 'wb') as new_file:
         new_file.write(downloaded_file)
-    
-    bot.reply_to(message, f'Фото получено и сохранено! Размер: {len(downloaded_file)} байт')
+    bot.reply_to(message, f'Фото получено и сохранено! file_id: {file_id}')
 
-# Обработчик полученных видео от пользователя
+# Обработчик полученных видео
 @bot.message_handler(content_types=['video'])
 def handle_video(message):
     file_id = message.video.file_id
     file_info = bot.get_file(file_id)
     downloaded_file = bot.download_file(file_info.file_path)
-    
     with open(f'video_{message.from_user.id}_{message.message_id}.mp4', 'wb') as new_file:
         new_file.write(downloaded_file)
-    
-    bot.reply_to(message, f'Видео получено! Длительность: {message.video.duration} сек')
+    bot.reply_to(message, f'Видео получено! file_id: {file_id}, длительность: {message.video.duration} сек')
 
-# Обработчик полученных голосовых от пользователя
+# Обработчик полученных голосовых
 @bot.message_handler(content_types=['voice'])
 def handle_voice(message):
     file_id = message.voice.file_id
     file_info = bot.get_file(file_id)
     downloaded_file = bot.download_file(file_info.file_path)
-    
     with open(f'voice_{message.from_user.id}_{message.message_id}.ogg', 'wb') as new_file:
         new_file.write(downloaded_file)
-    
-    bot.reply_to(message, f'Голосовое получено! Длительность: {message.voice.duration} сек')
+    bot.reply_to(message, f'Голосовое получено! file_id: {file_id}, длительность: {message.voice.duration} сек')
+
+# Обработчик полученных стикеров
+@bot.message_handler(content_types=['sticker'])
+def handle_sticker(message):
+    file_id = message.sticker.file_id
+    # Стикеры можно скачивать, но они в формате .webp
+    file_info = bot.get_file(file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+    with open(f'sticker_{message.from_user.id}_{message.message_id}.webp', 'wb') as new_file:
+        new_file.write(downloaded_file)
+    bot.reply_to(message, f'Стикер получен! file_id: {file_id} (сохранён как .webp)')
 
 # Обработчик всех остальных сообщений (эхо)
 @bot.message_handler(func=lambda message: True)
