@@ -4,7 +4,7 @@ import telebot
 TOKEN = '8734402843:AAGxZBOvJf9BnDewwTV_iFKvCL_lhJGx1JY'
 
 # Создаём объект бота
-bot = telebot.TeleBot(8734402843:AAGxZBOvJf9BnDewwTV_iFKvCL_lhJGx1JY)
+bot = telebot.TeleBot("8734402843:AAGxZBOvJf9BnDewwTV_iFKvCL_lhJGx1JY")
 
 # Обработчик команды /start
 @bot.message_handler(commands=['start'])
